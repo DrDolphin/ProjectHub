@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "electron-updater": "6.8.9",
-    "lucide-react": "^0.456.0"
+    "lucide-react": "^1.21.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
