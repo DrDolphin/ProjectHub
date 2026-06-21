@@ -137,6 +137,27 @@ export interface ToastPayload {
   type: 'success' | 'info' | 'error'
 }
 
+/** State machine for the auto-updater. */
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+
+/** Snapshot of the auto-updater, pushed to the renderer on every change. */
+export interface UpdateStatus {
+  state: UpdateState
+  /** The new version, once one is known (available/downloading/downloaded). */
+  version?: string
+  /** Download percent 0–100 (downloading state). */
+  progress?: number
+  /** Error message (error state). */
+  message?: string
+}
+
 // ------------------------------------------------------------
 // IPC CHANNEL CONTRACT — keep in sync with main/index.ts and
 // preload/index.ts.
@@ -161,7 +182,12 @@ export const IPC = {
   METADATA_SAVE: 'metadata:save',
   PINNED_GET: 'pinned:get',
   PINNED_TOGGLE: 'pinned:toggle',
-  SELECT_FOLDER: 'dialog:selectFolder'
+  SELECT_FOLDER: 'dialog:selectFolder',
+  // Auto-updater: status is main→renderer push; the rest are renderer→main.
+  UPDATE_STATUS: 'update:status',
+  UPDATE_GET_STATUS: 'update:getStatus',
+  UPDATE_CHECK: 'update:check',
+  UPDATE_INSTALL: 'update:install'
 } as const
 
 /** The typed API exposed on window.projectHub by the preload script. */
@@ -186,6 +212,11 @@ export interface ProjectHubApi {
   pinnedToggle(path: string): Promise<{ pinned: boolean }>
   selectFolder(): Promise<string | null>
   onToast(cb: (t: ToastPayload) => void): () => void
+  // Auto-updater
+  getUpdateStatus(): Promise<UpdateStatus>
+  checkForUpdates(): Promise<void>
+  installUpdate(): Promise<void>
+  onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
 }
 
 declare global {

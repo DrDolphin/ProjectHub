@@ -3,6 +3,10 @@ productName: ProjectHub
 directories:
   buildResources: build
   output: dist
+publish:
+  provider: github
+  owner: DrDolphin
+  repo: ProjectHub
 files:
   - 'out/**/*'
   - 'package.json'

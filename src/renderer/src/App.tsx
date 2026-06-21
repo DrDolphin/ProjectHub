@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Project, ProjectStatus, TrashEntry, CreateProjectResult } from '@shared/types'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Project, ProjectStatus, TrashEntry, CreateProjectResult, UpdateStatus, UpdateState } from '@shared/types'
 import { ToastProvider, useToast } from './lib/toast'
 import { Toolbar } from './components/Toolbar'
 import { ProjectCard } from './components/ProjectCard'
@@ -21,6 +21,36 @@ function Hub() {
   const [trashOpen, setTrashOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
+
+  const [update, setUpdate] = useState<UpdateStatus | null>(null)
+  const updatePrev = useRef<UpdateState>('idle')
+
+  // Subscribe to auto-updater status from the main process.
+  useEffect(() => {
+    void window.projectHub.getUpdateStatus().then(setUpdate)
+    const off = window.projectHub.onUpdateStatus(setUpdate)
+    return off
+  }, [])
+
+  // Surface meaningful status transitions as toasts.
+  useEffect(() => {
+    if (!update || update.state === updatePrev.current) return
+    updatePrev.current = update.state
+    if (update.state === 'available') {
+      toast('⤓', `Update ${update.version ? `v${update.version} ` : ''}found — downloading…`, 'info')
+    } else if (update.state === 'downloaded') {
+      toast('⤓', `Update ${update.version ? `v${update.version} ` : ''}ready — click to install`, 'success')
+    } else if (update.state === 'error') {
+      toast('⚠️', `Update check failed: ${update.message ?? 'unknown error'}`, 'error')
+    }
+  }, [update, toast])
+
+  const checkUpdates = () => {
+    void window.projectHub.checkForUpdates()
+  }
+  const installUpdate = () => {
+    void window.projectHub.installUpdate()
+  }
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -134,6 +164,9 @@ function Hub() {
         onNew={() => setCreateOpen(true)}
         onOpenTrash={() => setTrashOpen(true)}
         onPickRoot={pickRoot}
+        update={update}
+        onCheckUpdates={checkUpdates}
+        onInstallUpdate={installUpdate}
       />
 
       <main className="flex-1 overflow-y-auto px-5 py-5">

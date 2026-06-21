@@ -1,5 +1,7 @@
 name: CI
 
+# Build gate: every PR to main and every push to main must typecheck + build.
+# Windows packaging + release publishing live in release.yml (tag-triggered).
 on:
   push:
     branches: [main]
@@ -39,40 +41,3 @@ jobs:
 
       - name: Build
         run: pnpm build
-
-  package-windows:
-    name: Windows Installer
-    # Only produce the installer when code lands on main (not on every PR).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build installer
-        # --publish never: electron-builder auto-publishes to a GitHub release when it
-        # detects CI. We upload the installer as a workflow artifact instead.
-        run: pnpm exec electron-vite build && pnpm exec electron-builder --win --publish never
-
-      - name: Upload installer artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProjectHub-windows
-          path: |
-            dist/*.exe
-            dist/*.yml
-          if-no-files-found: error
-          retention-days: 30

@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
 import { getHubDir } from './config'
+import { initUpdater, registerUpdaterIpc } from './updater'
 
 // Ensure the hub data dir exists on boot.
 getHubDir()
@@ -46,7 +47,9 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpc()
+  registerUpdaterIpc()
   createWindow()
+  initUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -21,6 +21,14 @@ const api: ProjectHubApi = {
   pinnedGet: () => ipcRenderer.invoke(IPC.PINNED_GET),
   pinnedToggle: (path) => ipcRenderer.invoke(IPC.PINNED_TOGGLE, path),
   selectFolder: () => ipcRenderer.invoke(IPC.SELECT_FOLDER),
+  getUpdateStatus: () => ipcRenderer.invoke(IPC.UPDATE_GET_STATUS),
+  checkForUpdates: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
+  installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+  onUpdateStatus: (cb) => {
+    const listener = (_e: unknown, payload: Parameters<typeof cb>[0]) => cb(payload)
+    ipcRenderer.on(IPC.UPDATE_STATUS, listener)
+    return () => ipcRenderer.removeListener(IPC.UPDATE_STATUS, listener)
+  },
   onToast: (cb) => {
     const listener = (_e: unknown, payload: Parameters<typeof cb>[0]) => cb(payload)
     ipcRenderer.on('toast', listener)
