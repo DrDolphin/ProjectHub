@@ -24,7 +24,7 @@ jobs:
     name: Lint, Typecheck, Test & Build
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -32,7 +32,7 @@ jobs:
           version: 10
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
