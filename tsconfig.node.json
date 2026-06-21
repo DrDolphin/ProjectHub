@@ -5,7 +5,7 @@
     "types": ["node"],
     "lib": ["ES2022"],
     "paths": {
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": [
