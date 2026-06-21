@@ -1,6 +1,7 @@
-import { Search, Plus, Trash2, RefreshCw, LayoutGrid, List, FolderTree } from 'lucide-react'
+import { Search, Plus, Trash2, RefreshCw, LayoutGrid, List, FolderTree, Settings } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { ProjectStatus } from '@shared/types'
+import logo from '../assets/logo.svg'
 
 interface Props {
   query: string
@@ -17,6 +18,7 @@ interface Props {
   onNew: () => void
   onOpenTrash: () => void
   onPickRoot: () => void
+  onSettings: () => void
 }
 
 const FILTERS: { id: ProjectStatus | 'all'; label: string }[] = [
@@ -44,7 +46,8 @@ export function Toolbar({
   onRefresh,
   onNew,
   onOpenTrash,
-  onPickRoot
+  onPickRoot,
+  onSettings
 }: Props) {
   const searchRef = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
@@ -62,9 +65,7 @@ export function Toolbar({
       {/* Top row: title + actions */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-dim text-base shadow-glow">
-            🗺️
-          </div>
+          <img src={logo} alt="ProjectHub" className="h-8 w-8 rounded-lg shadow-glow" />
           <div>
             <h1 className="text-[15px] font-bold leading-tight text-text">ProjectHub</h1>
             <button
@@ -112,6 +113,9 @@ export function Toolbar({
               <List size={15} />
             </button>
           </div>
+          <button onClick={onSettings} className="btn btn-ghost border border-border" title="Settings">
+            <Settings size={14} />
+          </button>
           <button onClick={onNew} className="btn btn-accent">
             <Plus size={15} /> New project
           </button>

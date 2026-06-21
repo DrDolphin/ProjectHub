@@ -4,7 +4,7 @@ import { createConnection } from 'node:net'
 import { renameSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { existsSync, mkdirSync } from 'node:fs'
-import { IPC, type CreateProjectRequest } from '@shared/types'
+import { IPC, type CreateProjectRequest, type ChatRequest } from '@shared/types'
 import {
   scanProjects,
   guessDevPorts,
@@ -24,7 +24,8 @@ import {
   emptyTrash,
   moveToArchive
 } from './store'
-import { getProjectsRoot } from './config'
+import { deepseekChat } from './deepseek'
+import { getProjectsRoot, getSettings, updateSettings } from './config'
 
 /** Quick TCP probe — resolves true if something is listening. */
 function portAlive(port: number, host = '127.0.0.1', timeout = 350): Promise<boolean> {
@@ -99,9 +100,12 @@ function spawnDevTerminal(command: string, cwd: string, title: string): void {
   }
 }
 
+/** Safe `.message` extraction from a caught value of unknown shape. */
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+
 /** POSIX-style quoting for embedding a single arg inside a shell line. */
 function shellQuote(s: string): string {
-  return `'${s.replace(/'/g, `'\''`)}'`
+  return `'${s.replace(/'/g, `'\\''`)}'`
 }
 
 /**
@@ -193,9 +197,9 @@ export function registerIpc(): void {
       spawn('code', [path], { detached: true, shell: true, stdio: 'ignore' }).unref()
       toast(win, '💻', 'Opening in VS Code…', 'info')
       return { ok: true, message: 'Opened VS Code' }
-    } catch (err: any) {
-      toast(win, '💻', `Failed: ${err.message}`, 'error')
-      return { ok: false, message: err.message }
+    } catch (err) {
+      toast(win, '💻', `Failed: ${errMsg(err)}`, 'error')
+      return { ok: false, message: errMsg(err) }
     }
   })
 
@@ -210,7 +214,7 @@ export function registerIpc(): void {
     return { ok: true, message: 'Opened folder' }
   })
 
-  ipcMain.handle(IPC.REVEAL_IN_EXPLORER, async (e, path: string) => {
+  ipcMain.handle(IPC.REVEAL_IN_EXPLORER, async (_e, path: string) => {
     shell.showItemInFolder(path)
     return { ok: true, message: 'Revealed in Explorer' }
   })
@@ -228,9 +232,9 @@ export function registerIpc(): void {
       const entry = trashProject(path)
       toast(win, '🗑️', `“${entry.name}” moved to Trash`, 'info')
       return { ok: true, message: `Moved to trash: ${entry.name}` }
-    } catch (err: any) {
-      toast(win, '🗑️', `Failed: ${err.message}`, 'error')
-      return { ok: false, message: err.message }
+    } catch (err) {
+      toast(win, '🗑️', `Failed: ${errMsg(err)}`, 'error')
+      return { ok: false, message: errMsg(err) }
     }
   })
 
@@ -242,9 +246,9 @@ export function registerIpc(): void {
       const entry = restoreProject(id)
       toast(win, '↩️', `Restored “${entry.name}”`, 'success')
       return { ok: true, message: `Restored ${entry.name}` }
-    } catch (err: any) {
-      toast(win, '↩️', `Failed: ${err.message}`, 'error')
-      return { ok: false, message: err.message }
+    } catch (err) {
+      toast(win, '↩️', `Failed: ${errMsg(err)}`, 'error')
+      return { ok: false, message: errMsg(err) }
     }
   })
 
@@ -283,7 +287,7 @@ export function registerIpc(): void {
     if (res.canceled || res.filePaths.length === 0) {
       return { fromPath: req.sourcePath, toPath: '', moved: false, message: 'Cancelled' }
     }
-    const dest = res.filePaths[0]
+    const dest = res.filePaths[0]!
     const name = basename(req.sourcePath)
     const target = join(dest, name)
     if (existsSync(target)) {
@@ -294,9 +298,9 @@ export function registerIpc(): void {
       renameSync(req.sourcePath, target)
       toast(win, '📦', `Moved to ${dest}`, 'success')
       return { fromPath: req.sourcePath, toPath: target, moved: true, message: 'Moved' }
-    } catch (err: any) {
-      toast(win, '📦', `Failed: ${err.message}`, 'error')
-      return { fromPath: req.sourcePath, toPath: '', moved: false, message: err.message }
+    } catch (err) {
+      toast(win, '📦', `Failed: ${errMsg(err)}`, 'error')
+      return { fromPath: req.sourcePath, toPath: '', moved: false, message: errMsg(err) }
     }
   })
 
@@ -306,9 +310,9 @@ export function registerIpc(): void {
       const { toPath } = moveToArchive(path)
       toast(win, '📦', `Archived “${basename(path)}”`, 'success')
       return { ok: true, message: toPath }
-    } catch (err: any) {
-      toast(win, '📦', `Failed: ${err.message}`, 'error')
-      return { ok: false, message: err.message }
+    } catch (err) {
+      toast(win, '📦', `Failed: ${errMsg(err)}`, 'error')
+      return { ok: false, message: errMsg(err) }
     }
   })
 
@@ -332,4 +336,13 @@ export function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.GET_VERSION, () => app.getVersion())
+
+  // ---- Settings ----
+  ipcMain.handle(IPC.SETTINGS_GET, async () => getSettings())
+  ipcMain.handle(IPC.SETTINGS_SET, async (_e, partial) => updateSettings(partial))
+
+  // ---- DeepSeek Chat ----
+  ipcMain.handle(IPC.DEEPSEEK_CHAT, async (_e, req: ChatRequest) => {
+    return deepseekChat(req.messages)
+  })
 }
