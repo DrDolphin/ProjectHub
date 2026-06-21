@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatResponse, CreateProjectRequest, ProjectTemplate } from '@shared/types'
 import { getSettings } from './config'
+import { isSafeSegment } from './safePath'
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'
 
@@ -96,19 +97,27 @@ export async function deepseekChat(messages: ChatMessage[]): Promise<ChatRespons
     try {
       const parsed = JSON.parse(actionMatch[1]!.trim())
       if (parsed && typeof parsed.name === 'string' && parsed.name.trim()) {
-        // Normalize and validate
-        const validTemplates: ProjectTemplate[] = ['empty', 'node', 'vite-react', 'nextjs', 'python', 'static']
-        const template: ProjectTemplate = validTemplates.includes(parsed.template)
-          ? parsed.template
-          : 'empty'
+        const name = parsed.name.trim()
+        const parent =
+          typeof parsed.parent === 'string' && parsed.parent.trim() ? parsed.parent.trim() : undefined
+        // Reject path traversal: the model can emit arbitrary strings, so a
+        // name/parent with separators or ".." would let createProject scaffold
+        // outside the projects root. Drop the action rather than surface it.
+        const parentSafe =
+          !parent || parent.split(/[\\/]+/).filter(Boolean).every(isSafeSegment)
+        if (isSafeSegment(name) && parentSafe) {
+          // Normalize and validate
+          const validTemplates: ProjectTemplate[] = ['empty', 'node', 'vite-react', 'nextjs', 'python', 'static']
+          const template: ProjectTemplate = validTemplates.includes(parsed.template)
+            ? parsed.template
+            : 'empty'
 
-        projectAction = {
-          name: parsed.name.trim(),
-          parent: typeof parsed.parent === 'string' && parsed.parent.trim()
-            ? parsed.parent.trim()
-            : undefined,
-          template,
-          openAfter: parsed.openAfter !== false // default true
+          projectAction = {
+            name,
+            parent,
+            template,
+            openAfter: parsed.openAfter !== false // default true
+          }
         }
       }
     } catch {

@@ -25,6 +25,7 @@ import {
   moveToArchive
 } from './store'
 import { deepseekChat } from './deepseek'
+import { resolveProjectTarget } from './safePath'
 import { getProjectsRoot, getSettings, updateSettings } from './config'
 
 /** Quick TCP probe — resolves true if something is listening. */
@@ -262,9 +263,16 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.CREATE, async (e, req: CreateProjectRequest) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const root = getProjectsRoot()
-    const parent = req.parent && req.parent.trim() ? join(root, req.parent) : root
-    if (!existsSync(parent)) mkdirSync(parent, { recursive: true })
-    const target = join(parent, req.name)
+    // This IPC is a public programmatic + AI-driven surface, so it must
+    // enforce its own boundaries: reject any name/parent that contains
+    // traversal, separators, or otherwise escapes the projects root.
+    const resolved = resolveProjectTarget(root, req.parent, req.name)
+    if (!resolved) {
+      toast(win, '✨', `Invalid project name or location`, 'error')
+      return { path: '', created: false, message: 'Invalid project name or location' }
+    }
+    const { parentDir, target } = resolved
+    if (!existsSync(parentDir)) mkdirSync(parentDir, { recursive: true })
     if (existsSync(target)) {
       toast(win, '✨', `“${req.name}” already exists`, 'error')
       return { path: target, created: false, message: 'Already exists' }

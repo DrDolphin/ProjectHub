@@ -116,16 +116,17 @@ export function NewProjectPage({ onBack, parents, apiKeySet, onCreated }: Props)
       if (res.projectAction) {
         const createRes = await window.projectHub.createProject(res.projectAction)
         setResult(createRes)
-        if (createRes.created) {
-          onCreated(createRes)
-          const successMsg: ChatMessage = {
-            role: 'assistant',
-            content: createRes.message === 'Created'
-              ? `✅ Done! I created **${res.projectAction.name}**${res.projectAction.parent ? ` inside \`${res.projectAction.parent}/\`` : ''} using the **${res.projectAction.template}** template.${res.projectAction.openAfter !== false ? '\n\nOpening in VS Code…' : ''}`
-              : `⚠️ ${createRes.message}`
-          }
-          setMessages((prev) => [...prev, successMsg])
+        if (createRes.created) onCreated(createRes)
+        // Always report the outcome in chat — including skips/failures, so the
+        // user isn't left without feedback when the folder already exists or
+        // the name was rejected.
+        const followUp: ChatMessage = {
+          role: 'assistant',
+          content: createRes.created
+            ? `✅ Done! I created **${res.projectAction.name}**${res.projectAction.parent ? ` inside \`${res.projectAction.parent}/\`` : ''} using the **${res.projectAction.template}** template.${res.projectAction.openAfter !== false ? '\n\nOpening in VS Code…' : ''}`
+            : `⚠️ Couldn't create **${res.projectAction.name}**: ${createRes.message}`
         }
+        setMessages((prev) => [...prev, followUp])
       }
     } catch (err) {
       const errMsg: ChatMessage = {
