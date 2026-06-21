@@ -1,6 +1,13 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { autoUpdater } from 'electron-updater'
+// electron-updater is CommonJS and exports `autoUpdater` via an
+// Object.defineProperty getter, which Node's ESM loader cannot statically
+// detect as a named export. Importing it as `import { autoUpdater }` crashes
+// the packaged ESM main process at launch ("Named export 'autoUpdater' not
+// found"). Default-import the namespace and destructure at runtime instead.
+import electronUpdater from 'electron-updater'
 import { IPC, type UpdateStatus } from '@shared/types'
+
+const { autoUpdater } = electronUpdater
 
 /**
  * Auto-update via GitHub Releases.
