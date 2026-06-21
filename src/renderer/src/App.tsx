@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Project, ProjectStatus, TrashEntry, CreateProjectResult, UpdateStatus, UpdateState } from '@shared/types'
+import type { Project, ProjectStatus, TrashEntry, CreateProjectResult, UpdateStatus, UpdateState, AppSettings } from '@shared/types'
 import { ToastProvider, useToast } from './lib/toast'
 import { Toolbar } from './components/Toolbar'
 import { StatusBar } from './components/StatusBar'
@@ -7,10 +7,15 @@ import { ProjectCard } from './components/ProjectCard'
 import { DeleteModal } from './components/DeleteModal'
 import { TrashModal } from './components/TrashModal'
 import { CreateModal } from './components/CreateModal'
+import { NewProjectPage } from './components/NewProjectPage'
+import { SettingsPage } from './components/SettingsPage'
 import { Loader2, FolderSearch } from 'lucide-react'
+
+type Page = 'home' | 'new-project' | 'settings'
 
 function Hub() {
   const { toast } = useToast()
+  const [page, setPage] = useState<Page>('home')
   const [projects, setProjects] = useState<Project[]>([])
   const [root, setRoot] = useState('D:\\Projects')
   const [loading, setLoading] = useState(true)
@@ -25,6 +30,14 @@ function Hub() {
 
   const [update, setUpdate] = useState<UpdateStatus | null>(null)
   const updatePrev = useRef<UpdateState>('idle')
+
+  // Load settings to know if API key is set
+  const [apiKeySet, setApiKeySet] = useState(false)
+  useEffect(() => {
+    void window.projectHub.settingsGet().then((s: AppSettings) => {
+      setApiKeySet(!!s.deepseekApiKey)
+    })
+  }, [])
 
   // Subscribe to auto-updater status from the main process.
   useEffect(() => {
@@ -138,9 +151,11 @@ function Hub() {
     void refresh()
   }
 
-  const onCreated = (result: CreateProjectResult, _openAfter: boolean) => {
+  const onCreated = (result: CreateProjectResult) => {
     if (result.created) void refresh()
   }
+
+  const goHome = () => setPage('home')
 
   const pickRoot = async () => {
     const picked = await window.projectHub.selectFolder()
@@ -155,105 +170,131 @@ function Hub() {
 
   return (
     <div className="flex h-screen flex-col">
-      <Toolbar
-        query={query}
-        onQuery={setQuery}
-        filter={filter}
-        onFilter={setFilter}
-        view={view}
-        onView={setView}
-        total={projects.length}
-        shown={visible.length}
-        trashCount={trash.length}
-        root={root}
-        onRefresh={() => void refresh()}
-        onNew={() => setCreateOpen(true)}
-        onOpenTrash={() => setTrashOpen(true)}
-        onPickRoot={pickRoot}
-      />
+      {page === 'home' && (
+        <>
+          <Toolbar
+            query={query}
+            onQuery={setQuery}
+            filter={filter}
+            onFilter={setFilter}
+            view={view}
+            onView={setView}
+            total={projects.length}
+            shown={visible.length}
+            trashCount={trash.length}
+            root={root}
+            onRefresh={() => void refresh()}
+            onNew={() => setPage('new-project')}
+            onOpenTrash={() => setTrashOpen(true)}
+            onPickRoot={pickRoot}
+            onSettings={() => setPage('settings')}
+          />
 
-      <main className="flex-1 overflow-y-auto px-5 py-5">
-        {loading ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-text-dim">
-            <Loader2 size={28} className="animate-spin text-accent" />
-            <p className="text-sm">Scanning {root}…</p>
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-text-dim">
-            <FolderSearch size={32} />
-            <p className="text-sm">No projects match.</p>
-            <button onClick={() => setCreateOpen(true)} className="btn btn-accent mt-1">
-              Create your first project
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {pinned.length > 0 && (
-              <Section title="Pinned" count={pinned.length} accent>
-                <Grid view={view}>
-                  {pinned.map((p) => (
-                    <ProjectCard
-                      key={p.path}
-                      project={p}
-                      onLaunch={launch}
-                      onStartServer={startServer}
-                      onOpenVSCode={openVSCode}
-                      onOpenExplorer={openExplorer}
-                      onCopy={copy}
-                      onDelete={setDeleteTarget}
-                      onPin={pin}
-                      onMove={move}
-                      onArchive={archive}
-                    />
-                  ))}
-                </Grid>
-              </Section>
+          <main className="flex-1 overflow-y-auto px-5 py-5">
+            {loading ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-text-dim">
+                <Loader2 size={28} className="animate-spin text-accent" />
+                <p className="text-sm">Scanning {root}…</p>
+              </div>
+            ) : visible.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-text-dim">
+                <FolderSearch size={32} />
+                <p className="text-sm">No projects match.</p>
+                <button onClick={() => setPage('new-project')} className="btn btn-accent mt-1">
+                  Create your first project
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {pinned.length > 0 && (
+                  <Section title="Pinned" count={pinned.length} accent>
+                    <Grid view={view}>
+                      {pinned.map((p) => (
+                        <ProjectCard
+                          key={p.path}
+                          project={p}
+                          onLaunch={launch}
+                          onStartServer={startServer}
+                          onOpenVSCode={openVSCode}
+                          onOpenExplorer={openExplorer}
+                          onCopy={copy}
+                          onDelete={setDeleteTarget}
+                          onPin={pin}
+                          onMove={move}
+                          onArchive={archive}
+                        />
+                      ))}
+                    </Grid>
+                  </Section>
+                )}
+
+                <Section title="Projects" count={rest.length}>
+                  <Grid view={view}>
+                    {rest.map((p) => (
+                      <ProjectCard
+                        key={p.path}
+                        project={p}
+                        onLaunch={launch}
+                        onStartServer={startServer}
+                        onOpenVSCode={openVSCode}
+                        onOpenExplorer={openExplorer}
+                        onCopy={copy}
+                        onDelete={setDeleteTarget}
+                        onPin={pin}
+                        onMove={move}
+                        onArchive={archive}
+                      />
+                    ))}
+                  </Grid>
+                </Section>
+              </div>
             )}
+          </main>
 
-            <Section title="Projects" count={rest.length}>
-              <Grid view={view}>
-                {rest.map((p) => (
-                  <ProjectCard
-                    key={p.path}
-                    project={p}
-                    onLaunch={launch}
-                    onStartServer={startServer}
-                    onOpenVSCode={openVSCode}
-                    onOpenExplorer={openExplorer}
-                    onCopy={copy}
-                    onDelete={setDeleteTarget}
-                    onPin={pin}
-                    onMove={move}
-                    onArchive={archive}
-                  />
-                ))}
-              </Grid>
-            </Section>
-          </div>
-        )}
-      </main>
+          <StatusBar
+            version={version}
+            update={update}
+            onCheckUpdates={checkUpdates}
+            onInstallUpdate={installUpdate}
+          />
 
-      <StatusBar
-        version={version}
-        update={update}
-        onCheckUpdates={checkUpdates}
-        onInstallUpdate={installUpdate}
-      />
+          <DeleteModal project={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
+          <TrashModal
+            open={trashOpen}
+            onClose={() => setTrashOpen(false)}
+            entries={trash}
+            onRestore={restore}
+            onEmpty={empty}
+          />
+          <CreateModal
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            parents={parents}
+            onCreated={onCreated}
+          />
+        </>
+      )}
 
-      <DeleteModal project={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
-      <TrashModal
-        open={trashOpen}
-        onClose={() => setTrashOpen(false)}
-        entries={trash}
-        onRestore={restore}
-        onEmpty={empty}
-      />
-      <CreateModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        parents={parents}
-        onCreated={onCreated}
-      />
+      {page === 'new-project' && (
+        <NewProjectPage
+          onBack={goHome}
+          parents={parents}
+          apiKeySet={apiKeySet}
+          onCreated={onCreated}
+        />
+      )}
+
+      {page === 'settings' && (
+        <SettingsPage
+          onBack={() => {
+            setPage('home')
+            // Refresh API key status when returning from settings
+            void window.projectHub.settingsGet().then((s: AppSettings) => {
+              setApiKeySet(!!s.deepseekApiKey)
+            })
+          }}
+        />
+      )}
     </div>
   )
 }

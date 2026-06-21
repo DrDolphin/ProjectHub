@@ -163,6 +163,34 @@ export interface UpdateStatus {
 }
 
 // ------------------------------------------------------------
+// DeepSeek AI Chat
+// ------------------------------------------------------------
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[]
+}
+
+export interface ChatResponse {
+  content: string
+  /** Parsed CreateProjectRequest if the AI produced one, null otherwise. */
+  projectAction?: CreateProjectRequest | null
+}
+
+// ------------------------------------------------------------
+// App Settings
+// ------------------------------------------------------------
+
+export interface AppSettings {
+  projectsRoot: string
+  deepseekApiKey: string
+}
+
+// ------------------------------------------------------------
 // IPC CHANNEL CONTRACT — keep in sync with main/index.ts and
 // preload/index.ts.
 // ------------------------------------------------------------
@@ -192,7 +220,12 @@ export const IPC = {
   UPDATE_GET_STATUS: 'update:getStatus',
   UPDATE_CHECK: 'update:check',
   UPDATE_INSTALL: 'update:install',
-  GET_VERSION: 'app:getVersion'
+  GET_VERSION: 'app:getVersion',
+  // Settings
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SET: 'settings:set',
+  // DeepSeek AI Chat
+  DEEPSEEK_CHAT: 'deepseek:chat'
 } as const
 
 /** The typed API exposed on window.projectHub by the preload script. */
@@ -224,6 +257,11 @@ export interface ProjectHubApi {
   onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
   // App version (from package.json via app.getVersion()).
   getVersion(): Promise<string>
+  // Settings
+  settingsGet(): Promise<AppSettings>
+  settingsSet(settings: Partial<AppSettings>): Promise<AppSettings>
+  // DeepSeek AI Chat
+  deepseekChat(req: ChatRequest): Promise<ChatResponse>
 }
 
 declare global {

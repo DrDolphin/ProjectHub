@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="ProjectHub">
+  <title>ProjectHub</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7d97ff"/>
+      <stop offset="1" stop-color="#475ed4"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.32" cy="0.22" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="20" y="20" width="472" height="472" rx="116" fill="url(#tile)"/>
+  <rect x="20" y="20" width="472" height="472" rx="116" fill="url(#sheen)"/>
+  <rect x="232" y="120" width="180" height="150" rx="30" fill="#ffffff" fill-opacity="0.42"/>
+  <rect x="96" y="212" width="280" height="180" rx="34" fill="#14215a" fill-opacity="0.20"/>
+  <rect x="96" y="204" width="280" height="180" rx="34" fill="#ffffff"/>
+  <circle cx="132" cy="236" r="11" fill="url(#tile)"/>
+  <circle cx="166" cy="236" r="11" fill="url(#tile)"/>
+  <circle cx="200" cy="236" r="11" fill="url(#tile)"/>
+  <rect x="132" y="284" width="190" height="22" rx="11" fill="url(#tile)" fill-opacity="0.30"/>
+  <rect x="132" y="324" width="132" height="22" rx="11" fill="url(#tile)" fill-opacity="0.30"/>
+</svg>

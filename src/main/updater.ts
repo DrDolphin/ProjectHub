@@ -92,8 +92,8 @@ export async function checkForUpdates(): Promise<void> {
   if (!app.isPackaged) return
   try {
     await autoUpdater.checkForUpdates()
-  } catch (err: any) {
-    broadcast({ state: 'error', message: err?.message ?? String(err) })
+  } catch (err) {
+    broadcast({ state: 'error', message: err instanceof Error ? err.message : String(err) })
   }
 }
 

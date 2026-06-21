@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 export interface Settings {
   projectsRoot: string
+  deepseekApiKey: string
 }
 
 const DEFAULT_ROOT = 'D:\\Projects'
@@ -28,14 +29,19 @@ function readSettings(): Settings {
   try {
     if (existsSync(file)) {
       const raw = JSON.parse(readFileSync(file, 'utf8'))
-      if (raw && typeof raw.projectsRoot === 'string' && raw.projectsRoot.trim()) {
-        return { projectsRoot: raw.projectsRoot }
+      const settings: Settings = { projectsRoot: DEFAULT_ROOT, deepseekApiKey: '' }
+      if (typeof raw.projectsRoot === 'string' && raw.projectsRoot.trim()) {
+        settings.projectsRoot = raw.projectsRoot
       }
+      if (typeof raw.deepseekApiKey === 'string') {
+        settings.deepseekApiKey = raw.deepseekApiKey
+      }
+      return settings
     }
   } catch {
     /* fall through to default */
   }
-  return { projectsRoot: DEFAULT_ROOT }
+  return { projectsRoot: DEFAULT_ROOT, deepseekApiKey: '' }
 }
 
 let cached: Settings | null = null
@@ -46,9 +52,21 @@ export function getSettings(): Settings {
 }
 
 export function setProjectsRoot(root: string): void {
-  cached = { projectsRoot: root }
+  const s = getSettings()
+  cached = { ...s, projectsRoot: root }
+  writeSettings()
+}
+
+function writeSettings(): void {
   const file = join(app.getPath('userData'), 'settings.json')
-  writeFileSync(file, JSON.stringify(cached, null, 2), 'utf8')
+  writeFileSync(file, JSON.stringify(getSettings(), null, 2), 'utf8')
+}
+
+export function updateSettings(partial: Partial<Settings>): Settings {
+  const current = getSettings()
+  cached = { ...current, ...partial }
+  writeSettings()
+  return cached
 }
 
 export function getProjectsRoot(): string {
