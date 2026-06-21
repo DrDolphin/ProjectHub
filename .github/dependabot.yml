@@ -1,0 +1,50 @@
+# Keep dependencies (and CI actions) current. Electron ships a Chromium/
+# Node runtime with regular CVEs, so updates are grouped to land as
+# reviewable batches rather than a flood of individual PRs.
+version: 2
+
+updates:
+  # npm (pnpm) dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Electron + its updater are security-critical; review as one unit.
+      electron:
+        patterns:
+          - electron
+          - electron-builder
+          - electron-vite
+          - electron-updater
+      # React renderer stack
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+      # Everything else (lint, build tooling, types)
+      tooling:
+        dependency-type: development
+        exclude-patterns:
+          - electron
+          - electron-builder
+          - electron-vite
+          - electron-updater
+          - react
+          - react-dom
+
+  # Keep GitHub Actions on current, non-deprecated runtimes
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - '*'

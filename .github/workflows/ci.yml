@@ -1,7 +1,8 @@
 name: CI
 
-# Build gate: every PR to main and every push to main must typecheck + build.
-# Windows packaging + release publishing live in release.yml (tag-triggered).
+# Build gate: every PR to main and every push to main must lint,
+# typecheck, run unit tests, and build. Windows packaging + release
+# publishing live in release.yml (tag-triggered).
 on:
   push:
     branches: [main]
@@ -17,18 +18,18 @@ concurrency:
 
 jobs:
   build:
-    name: Typecheck & Build
+    name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -36,8 +37,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
 
       - name: Build
         run: pnpm build
