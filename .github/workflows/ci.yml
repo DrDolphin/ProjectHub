@@ -1,8 +1,11 @@
 name: CI
 
 # Build gate: every PR to main and every push to main must lint,
-# typecheck, run unit tests, and build. Windows packaging + release
-# publishing live in release.yml (tag-triggered).
+# typecheck, run unit tests, and build. Runs on Windows because
+# ProjectHub is a Windows-only app and the store tests assert Windows
+# path semantics (backslash-normalized metadata keys), so CI must mirror
+# the target/dev OS. Windows packaging + release publishing live in
+# release.yml (tag-triggered).
 on:
   push:
     branches: [main]
@@ -19,7 +22,7 @@ concurrency:
 jobs:
   build:
     name: Lint, Typecheck, Test & Build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
 
