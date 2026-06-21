@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, renameSync, rmSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, renameSync, rmSync, readdirSync, mkdirSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ProjectMeta, TrashEntry } from '@shared/types'
@@ -238,7 +238,6 @@ export function moveToArchive(sourcePath: string): { toPath: string } {
   const name = basename(key)
   const archiveDir = join(getProjectsRoot(), '.archive')
   if (!existsSync(archiveDir)) {
-    const { mkdirSync } = require('node:fs')
     mkdirSync(archiveDir, { recursive: true })
   }
   let target = join(archiveDir, name)

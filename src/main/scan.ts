@@ -9,6 +9,13 @@ import type {
 } from '@shared/types'
 import { getProjectsRoot } from './config'
 
+/** Minimal package.json shape used for dependency/script detection. */
+interface PackageJson {
+  scripts?: Record<string, string>
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
+
 /** Directory names never treated as projects / never descended into. */
 const IGNORED_DIRS = new Set([
   'node_modules',
@@ -159,7 +166,7 @@ export function guessDevPorts(dir: string): number[] {
     const cfg = tryRead(join(dir, f))
     if (cfg) {
       const m = cfg.match(/port\s*:\s*(\d+)/)
-      if (m) ports.unshift(parseInt(m[1], 10))
+      if (m && m[1]) ports.unshift(parseInt(m[1], 10))
     }
   }
   // next config
@@ -191,7 +198,7 @@ export function resolveDevCommand(dir: string, meta?: ProjectMeta): string | nul
   if (explicit) return explicit
 
   // 2. Node project with a dev/start script.
-  const pkg = safeJson<any>(tryRead(join(dir, 'package.json')))
+  const pkg = safeJson<PackageJson>(tryRead(join(dir, 'package.json')))
   if (pkg && pkg.scripts) {
     const hasDev = Boolean(pkg.scripts.dev)
     const hasStart = Boolean(pkg.scripts.start)
@@ -219,10 +226,10 @@ function detectInfo(dir: string, meta?: ProjectMeta): DetectedInfo {
   const stack: string[] = []
   let manager = 'none'
   let hasDevScript = false
-  let isGitRepo = hasFile(dir, '.git') || hasFile(join(dir, '.git'), 'HEAD')
-  let kind = 'Project'
+  const isGitRepo = hasFile(dir, '.git') || hasFile(join(dir, '.git'), 'HEAD')
+  let kind: string
 
-  const pkg = safeJson<any>(tryRead(join(dir, 'package.json')))
+  const pkg = safeJson<PackageJson>(tryRead(join(dir, 'package.json')))
 
   if (pkg) {
     stack.push('Node.js')
