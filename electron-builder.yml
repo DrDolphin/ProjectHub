@@ -7,6 +7,11 @@ publish:
   provider: github
   owner: DrDolphin
   repo: ProjectHub
+  # Default releaseType is "draft" — which makes the release invisible to
+  # electron-updater (it only sees published releases via /releases/latest/).
+  # Force "release" so tag-triggered CI publishes immediately and the update
+  # feed is live the moment the build finishes.
+  releaseType: release
 files:
   - 'out/**/*'
   - 'package.json'
