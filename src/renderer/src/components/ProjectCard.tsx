@@ -12,7 +12,8 @@ import {
   FolderInput,
   Archive,
   Crosshair,
-  Star
+  Star,
+  StickyNote
 } from 'lucide-react'
 import type { Project } from '@shared/types'
 import { statusStyle } from '../lib/status'
@@ -48,6 +49,8 @@ export function ProjectCard({
   const longDesc = (project.meta.description?.length ?? 0) > 140
   const devCmd = project.meta.scripts?.dev || project.meta.scripts?.start
   const stackParts = (project.meta.stack || project.detected.stack.join(', ')).split(',').map((s) => s.trim()).filter(Boolean)
+  // Prefer the manifest's declared type; fall back to what we auto-detect.
+  const kindLabel = project.meta.type || project.detected.kind
 
   return (
     <div
@@ -98,6 +101,14 @@ export function ProjectCard({
         </button>
       )}
 
+      {/* Manifest note */}
+      {project.meta.note && (
+        <p className="mb-2.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-text-dim">
+          <StickyNote size={12} className="mt-0.5 shrink-0 opacity-70" />
+          <span className="line-clamp-2">{project.meta.note}</span>
+        </p>
+      )}
+
       {/* Meta tags */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <span
@@ -106,9 +117,9 @@ export function ProjectCard({
           <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
           {project.statusLabel}
         </span>
-        {project.detected.kind && project.detected.kind !== 'Project' && (
+        {kindLabel && kindLabel !== 'Project' && (
           <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text-muted">
-            {project.detected.kind}
+            {kindLabel}
           </span>
         )}
         {project.detected.manager !== 'none' && (
