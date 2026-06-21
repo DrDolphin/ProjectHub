@@ -187,7 +187,8 @@ export const IPC = {
   UPDATE_STATUS: 'update:status',
   UPDATE_GET_STATUS: 'update:getStatus',
   UPDATE_CHECK: 'update:check',
-  UPDATE_INSTALL: 'update:install'
+  UPDATE_INSTALL: 'update:install',
+  GET_VERSION: 'app:getVersion'
 } as const
 
 /** The typed API exposed on window.projectHub by the preload script. */
@@ -217,6 +218,8 @@ export interface ProjectHubApi {
   checkForUpdates(): Promise<void>
   installUpdate(): Promise<void>
   onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
+  // App version (from package.json via app.getVersion()).
+  getVersion(): Promise<string>
 }
 
 declare global {

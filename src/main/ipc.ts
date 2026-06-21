@@ -1,4 +1,4 @@
-import { ipcMain, shell, clipboard, dialog, BrowserWindow } from 'electron'
+import { ipcMain, shell, clipboard, dialog, BrowserWindow, app } from 'electron'
 import { spawn } from 'node:child_process'
 import { createConnection } from 'node:net'
 import { renameSync } from 'node:fs'
@@ -323,4 +323,6 @@ export function registerIpc(): void {
     if (res.canceled) return null
     return res.filePaths[0] ?? null
   })
+
+  ipcMain.handle(IPC.GET_VERSION, () => app.getVersion())
 }

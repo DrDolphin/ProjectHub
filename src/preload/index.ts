@@ -29,6 +29,7 @@ const api: ProjectHubApi = {
     ipcRenderer.on(IPC.UPDATE_STATUS, listener)
     return () => ipcRenderer.removeListener(IPC.UPDATE_STATUS, listener)
   },
+  getVersion: () => ipcRenderer.invoke(IPC.GET_VERSION),
   onToast: (cb) => {
     const listener = (_e: unknown, payload: Parameters<typeof cb>[0]) => cb(payload)
     ipcRenderer.on('toast', listener)

@@ -1,6 +1,6 @@
-import { Search, Plus, Trash2, RefreshCw, LayoutGrid, List, FolderTree, DownloadCloud, Loader2 } from 'lucide-react'
+import { Search, Plus, Trash2, RefreshCw, LayoutGrid, List, FolderTree } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import type { ProjectStatus, UpdateStatus } from '@shared/types'
+import type { ProjectStatus } from '@shared/types'
 
 interface Props {
   query: string
@@ -17,9 +17,6 @@ interface Props {
   onNew: () => void
   onOpenTrash: () => void
   onPickRoot: () => void
-  update?: UpdateStatus | null
-  onCheckUpdates: () => void
-  onInstallUpdate: () => void
 }
 
 const FILTERS: { id: ProjectStatus | 'all'; label: string }[] = [
@@ -47,10 +44,7 @@ export function Toolbar({
   onRefresh,
   onNew,
   onOpenTrash,
-  onPickRoot,
-  update,
-  onCheckUpdates,
-  onInstallUpdate
+  onPickRoot
 }: Props) {
   const searchRef = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
@@ -101,25 +95,6 @@ export function Toolbar({
               </span>
             )}
           </button>
-          {update?.state === 'downloaded' ? (
-            <button onClick={onInstallUpdate} className="btn btn-accent" title={`Install ${update.version ? `v${update.version}` : 'update'} and restart`}>
-              <DownloadCloud size={14} /> Install{update.version ? ` v${update.version}` : ''}
-            </button>
-          ) : update && (update.state === 'downloading' || update.state === 'checking' || update.state === 'available') ? (
-            <button
-              onClick={onCheckUpdates}
-              className="btn btn-ghost border border-border"
-              title={update.state === 'downloading' ? `Downloading ${update.version ? `v${update.version}` : 'update'}…` : 'Checking for updates…'}
-              disabled
-            >
-              <Loader2 size={14} className="animate-spin" />
-              {update.state === 'downloading' && update.progress != null ? `${update.progress}%` : ''}
-            </button>
-          ) : (
-            <button onClick={onCheckUpdates} className="btn btn-ghost border border-border" title="Check for updates">
-              <DownloadCloud size={14} />
-            </button>
-          )}
           <div className="mx-1 h-5 w-px bg-border" />
           <div className="flex overflow-hidden rounded-md border border-border">
             <button

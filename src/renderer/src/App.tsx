@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Project, ProjectStatus, TrashEntry, CreateProjectResult, UpdateStatus, UpdateState } from '@shared/types'
 import { ToastProvider, useToast } from './lib/toast'
 import { Toolbar } from './components/Toolbar'
+import { StatusBar } from './components/StatusBar'
 import { ProjectCard } from './components/ProjectCard'
 import { DeleteModal } from './components/DeleteModal'
 import { TrashModal } from './components/TrashModal'
@@ -51,6 +52,11 @@ function Hub() {
   const installUpdate = () => {
     void window.projectHub.installUpdate()
   }
+
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    void window.projectHub.getVersion().then(setVersion)
+  }, [])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -164,9 +170,6 @@ function Hub() {
         onNew={() => setCreateOpen(true)}
         onOpenTrash={() => setTrashOpen(true)}
         onPickRoot={pickRoot}
-        update={update}
-        onCheckUpdates={checkUpdates}
-        onInstallUpdate={installUpdate}
       />
 
       <main className="flex-1 overflow-y-auto px-5 py-5">
@@ -229,6 +232,13 @@ function Hub() {
           </div>
         )}
       </main>
+
+      <StatusBar
+        version={version}
+        update={update}
+        onCheckUpdates={checkUpdates}
+        onInstallUpdate={installUpdate}
+      />
 
       <DeleteModal project={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
       <TrashModal
