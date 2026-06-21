@@ -1,0 +1,14 @@
+{
+  "$schema": "../.projecthub/manifest.schema.json",
+  "name": "ProjectHub",
+  "type": "Electron + Vite + React app",
+  "description": "A modern electron desktop hub for launching, organizing, and managing local development projects. Auto-discovers projects from the projects root folder and provides one-click launch, dev server start, VS Code open, and project management features.",
+  "stack": "TypeScript, Electron, Vite, React 18, TailwindCSS, Lucide, electron-updater",
+  "status": "active",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "build:win": "electron-vite build && electron-builder --win"
+  }
+}

@@ -15,7 +15,11 @@ export type ProjectStatus =
   | 'archived'
   | 'unknown'
 
-/** Hand-curated metadata keyed by project path (metadata.json). */
+/**
+ * Curated project metadata. The primary source is each project's own
+ * `manifest.json` (co-located in the project folder); the centralized
+ * `metadata.json` (keyed by path) is a fallback. Manifest fields win.
+ */
 export interface ProjectMeta {
   /** Display name override (defaults to folder name). */
   name?: string
@@ -57,7 +61,7 @@ export interface Project {
   folder: string
   /** Display name (metadata override or folder name). */
   name: string
-  /** Parent folder name, if nested inside a grouping folder. */
+  /** Root-relative path of the containing (grouping) folder, if nested. */
   parent?: string
   /** Depth from the projects root (0 = top-level). */
   depth: number

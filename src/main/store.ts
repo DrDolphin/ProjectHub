@@ -6,6 +6,7 @@ import {
   getMetadataPath,
   getPinnedPath,
   getManifestPath,
+  getManifestSchemaPath,
   getTrashDir,
   getSeedMetadataPath,
   getProjectsRoot
@@ -59,6 +60,65 @@ export function saveMetadata(data: Record<string, ProjectMeta>): void {
   const normalized: Record<string, ProjectMeta> = {}
   for (const [k, v] of Object.entries(data)) normalized[normalizeKey(k)] = v
   writeJson(getMetadataPath(), normalized)
+}
+
+// ---------------- MANIFEST SCHEMA ----------------
+
+/**
+ * The contract for a per-project `manifest.json`, kept in sync with the fields
+ * ProjectHub reads in scan.ts (readManifestMeta). Mirrors ProjectMeta plus the
+ * grouping-folder convention.
+ */
+const MANIFEST_SCHEMA = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'projecthub/manifest.schema.json',
+  title: 'ProjectHub Project Manifest',
+  description:
+    'Per-project descriptor read by ProjectHub to identify a folder as a project and show its info.',
+  type: 'object',
+  properties: {
+    $schema: { type: 'string' },
+    name: { type: 'string', description: 'Display name (defaults to the folder name).' },
+    type: {
+      type: 'string',
+      description:
+        'Human label for the kind of project, e.g. "Next.js app". Use "Grouping folder" to mark a container whose child folders are the real projects.'
+    },
+    description: { type: 'string' },
+    stack: { type: 'string', description: 'Comma-separated tech stack, e.g. "TypeScript, React, Vite".' },
+    status: {
+      type: 'string',
+      description:
+        'Project status. Canonical buckets: active, planning, spec, testing, oneoff, empty, archived, unknown.'
+    },
+    note: { type: 'string', description: 'Short freeform note shown on the project card.' },
+    scripts: {
+      type: 'object',
+      description: 'Commands surfaced by ProjectHub (overrides package.json detection).',
+      properties: {
+        dev: { type: 'string' },
+        build: { type: 'string' },
+        start: { type: 'string' },
+        test: { type: 'string' }
+      },
+      additionalProperties: { type: 'string' }
+    }
+  },
+  additionalProperties: true
+} as const
+
+/**
+ * Write the manifest schema into the hub dir if absent, so the `$schema`
+ * reference project manifests carry resolves. Idempotent; safe to call on boot.
+ */
+export function ensureManifestSchema(): void {
+  const file = getManifestSchemaPath()
+  if (existsSync(file)) return
+  try {
+    writeJson(file, MANIFEST_SCHEMA)
+  } catch {
+    /* non-fatal: schema is an editor convenience only */
+  }
 }
 
 // ---------------- PINNED ----------------

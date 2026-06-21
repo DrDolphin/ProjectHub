@@ -94,7 +94,7 @@ function Hub() {
     return projects.filter((p) => {
       if (filter !== 'all' && p.status !== filter) return false
       if (!q) return true
-      const hay = `${p.name} ${p.folder} ${p.meta.description || ''} ${p.meta.stack || ''} ${p.detected.stack.join(' ')} ${p.detected.kind} ${p.path}`.toLowerCase()
+      const hay = `${p.name} ${p.folder} ${p.meta.description || ''} ${p.meta.stack || ''} ${p.meta.type || ''} ${p.meta.note || ''} ${p.detected.stack.join(' ')} ${p.detected.kind} ${p.path}`.toLowerCase()
       return hay.includes(q)
     })
   }, [projects, query, filter])

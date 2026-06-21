@@ -75,6 +75,82 @@ function hasFile(dir: string, name: string): boolean {
   return existsSync(join(dir, name))
 }
 
+/** The per-project descriptor ProjectHub reads from each project folder. */
+const MANIFEST_FILE = 'manifest.json'
+
+/**
+ * Read a project's own `manifest.json` (co-located in its folder) and map it
+ * onto ProjectMeta. This is the per-project source of truth that drives both
+ * which folders ProjectHub surfaces and the information it shows for them.
+ *
+ * Returns null when the folder has no manifest, or the file isn't a plain
+ * object — notably the trash manifest under `.projecthub`, which is a JSON
+ * array and must never be mistaken for a project descriptor.
+ */
+export function readManifestMeta(dir: string): ProjectMeta | null {
+  const raw = safeJson<Record<string, unknown>>(tryRead(join(dir, MANIFEST_FILE)))
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+
+  const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
+  const meta: ProjectMeta = {}
+  const name = str(raw.name)
+  if (name !== undefined) meta.name = name
+  const description = str(raw.description)
+  if (description !== undefined) meta.description = description
+  const stack = str(raw.stack)
+  if (stack !== undefined) meta.stack = stack
+  const type = str(raw.type)
+  if (type !== undefined) meta.type = type
+  const status = str(raw.status)
+  if (status !== undefined) meta.status = status
+  const note = str(raw.note)
+  if (note !== undefined) meta.note = note
+
+  const s = raw.scripts
+  if (s && typeof s === 'object' && !Array.isArray(s)) {
+    const so = s as Record<string, unknown>
+    const scripts: NonNullable<ProjectMeta['scripts']> = {}
+    const dev = str(so.dev)
+    if (dev !== undefined) scripts.dev = dev
+    const build = str(so.build)
+    if (build !== undefined) scripts.build = build
+    const start = str(so.start)
+    if (start !== undefined) scripts.start = start
+    const test = str(so.test)
+    if (test !== undefined) scripts.test = test
+    if (Object.keys(scripts).length > 0) meta.scripts = scripts
+  }
+
+  return meta
+}
+
+/**
+ * Overlay an authoritative on-disk manifest onto the (fallback) centralized
+ * metadata. Manifest fields win; scripts are merged key-by-key.
+ */
+export function mergeMeta(base: ProjectMeta, override: ProjectMeta | null): ProjectMeta {
+  if (!override) return base
+  const merged: ProjectMeta = { ...base, ...override }
+  const scripts = { ...(base.scripts || {}), ...(override.scripts || {}) }
+  if (Object.keys(scripts).length > 0) merged.scripts = scripts
+  else delete merged.scripts
+  return merged
+}
+
+/** The exact `type` sentinel that marks a folder as a sub-project container. */
+const GROUPING_TYPE = 'grouping folder'
+
+/**
+ * True when a manifest marks its folder as a container for sub-projects via
+ * the exact `"type": "Grouping folder"` sentinel. Such folders are descended
+ * into rather than shown as a launchable project of their own. An exact match
+ * (not a substring) avoids misclassifying real project kinds that merely
+ * contain the word "group" (e.g. "Group chat app").
+ */
+export function isGroupingManifest(meta: ProjectMeta | null): boolean {
+  return meta?.type?.trim().toLowerCase() === GROUPING_TYPE
+}
+
 /** Detect the dev server port from a project's config, if possible. */
 export function guessDevPorts(dir: string): number[] {
   const ports = [3000, 5173, 5174, 4173, 8080, 1420, 4000, 8000]
@@ -202,7 +278,7 @@ function detectInfo(dir: string, meta?: ProjectMeta): DetectedInfo {
     stack.push('Go')
     manager = 'go'
     kind = 'Go project'
-  } else if (readdirSync(dir).some((f) => f.endsWith('.csproj'))) {
+  } else if (listDir(dir).names.some((f) => f.endsWith('.csproj'))) {
     stack.push('C#', '.NET')
     manager = 'dotnet'
     kind = '.NET project'
@@ -245,8 +321,26 @@ export function statusBucket(statusStr: string | undefined, detected: DetectedIn
   return 'unknown'
 }
 
+/**
+ * Canonical status keywords manifests use verbatim. When the manifest just
+ * carries one of these (e.g. "active"), we render the polished bucket label;
+ * a descriptive status ("Active development") is shown exactly as written.
+ */
+const BUCKET_KEYWORDS = new Set([
+  'active',
+  'planning',
+  'spec',
+  'testing',
+  'oneoff',
+  'one-off',
+  'empty',
+  'archived',
+  'unknown'
+])
+
 function humanLabel(status: ProjectStatus, meta: ProjectMeta): string {
-  if (meta.status) return meta.status
+  const raw = meta.status?.trim()
+  if (raw && !BUCKET_KEYWORDS.has(raw.toLowerCase())) return raw
   switch (status) {
     case 'active':
       return 'Active'
@@ -295,6 +389,7 @@ function buildProject(
 /** Does a directory look like a project? */
 function isProjectDir(dir: string): boolean {
   const markers = [
+    MANIFEST_FILE, // an explicit ProjectHub manifest always marks a project
     'package.json',
     'pyproject.toml',
     'requirements.txt',
@@ -317,61 +412,83 @@ export interface ScanOptions {
   pinned: string[]
 }
 
-/** Walk the projects root: depth-0 projects + depth-1 sub-projects. */
+/** Guard against pathological nesting / symlink loops while descending groups. */
+const MAX_SCAN_DEPTH = 6
+
+/**
+ * Walk the projects root. A folder is surfaced as a project card when its
+ * manifest (or, failing that, its on-disk markers) identifies it as one.
+ * Folders whose manifest declares them a "Grouping folder" are never shown
+ * themselves — they're descended into so their child projects appear instead,
+ * to any depth (e.g. ---/Story Generators/AI CYOA).
+ */
 export function scanProjects(opts: ScanOptions): Project[] {
   const root = getProjectsRoot()
   const { metadata, pinned } = opts
   const out: Project[] = []
 
   const normalizeKey = (p: string) => p.replace(/\//g, '\\')
+  const isPinned = (p: string) => pinned.includes(normalizeKey(p))
 
-  const metaFor = (p: string): ProjectMeta => metadata[normalizeKey(p)] || {}
+  // Per-project manifest (authoritative) overlaid on centralized metadata (fallback).
+  const centralizedFor = (p: string): ProjectMeta => metadata[normalizeKey(p)] || {}
+
+  /**
+   * Surface the projects reachable from `dir`. Returns true if it (or anything
+   * beneath it) produced a card. `parent` is the root-relative path of the
+   * containing folder (undefined at the top level), so it round-trips through
+   * IPC.CREATE's `join(root, parent)` even when groups are nested or share a
+   * name (e.g. `---/Story Generators`).
+   */
+  const visit = (dir: string, name: string, depth: number, parent: string | undefined): boolean => {
+    const manifest = readManifestMeta(dir)
+    const meta = mergeMeta(centralizedFor(dir), manifest)
+    const grouping = isGroupingManifest(manifest)
+
+    // A real project (declared and/or detected) that isn't a grouping container
+    // is a leaf — surface it and don't descend into its internals.
+    if (!grouping && isProjectDir(dir)) {
+      out.push(buildProject(dir, depth, parent, meta, isPinned(dir)))
+      return true
+    }
+
+    // Otherwise it's a container: a declared grouping folder, or a plain
+    // organizational folder that may hold projects. Descend one level (deeper
+    // for declared groups) and let children surface themselves. Children carry
+    // this folder's root-relative path as their parent.
+    const dirRel = parent ? join(parent, name) : name
+    let added = false
+    if (depth < MAX_SCAN_DEPTH) {
+      for (const child of listDir(dir).names) {
+        if (IGNORED_DIRS.has(child) || child.startsWith('.')) continue
+        const childPath = join(dir, child)
+        if (!isDir(childPath)) continue
+        if (visit(childPath, child, depth + 1, dirRel)) added = true
+      }
+    }
+
+    // Legacy fallback: a non-grouping top-level folder with no surfaced children
+    // but real contents still shows as a single depth-0 card (e.g. a loose docs
+    // or spec folder with no code markers).
+    if (!grouping && !added && depth === 0) {
+      const real = listDir(dir).names.filter((n) => !n.startsWith('.'))
+      if (real.length > 0) {
+        out.push(buildProject(dir, 0, undefined, meta, isPinned(dir)))
+        return true
+      }
+    }
+
+    return added
+  }
 
   const { names, err } = listDir(root)
   if (err) return out
 
   for (const name of names) {
-    if (name.startsWith('.') && IGNORED_DIRS.has(name)) continue
     if (IGNORED_DIRS.has(name)) continue
     const fullPath = join(root, name)
     if (!isDir(fullPath)) continue
-
-    if (isProjectDir(fullPath)) {
-      // depth-0 leaf project; don't descend
-      out.push(buildProject(fullPath, 0, undefined, metaFor(fullPath), pinned.includes(normalizeKey(fullPath))))
-    } else {
-      // potential grouping dir — look one level deeper
-      const children = listDir(fullPath)
-      let addedChild = false
-      for (const child of children.names) {
-        if (IGNORED_DIRS.has(child) || child.startsWith('.')) continue
-        const childPath = join(fullPath, child)
-        if (!isDir(childPath)) continue
-        if (isProjectDir(childPath)) {
-          out.push(
-            buildProject(
-              childPath,
-              1,
-              name,
-              metaFor(childPath),
-              pinned.includes(normalizeKey(childPath))
-            )
-          )
-          addedChild = true
-        }
-      }
-      // If the grouping dir has no child projects but still looks like
-      // something (e.g. a docs/spec project at depth 0), surface it.
-      if (!addedChild) {
-        const { names: inner } = listDir(fullPath)
-        const real = inner.filter((n) => !n.startsWith('.'))
-        if (real.length > 0) {
-          out.push(
-            buildProject(fullPath, 0, undefined, metaFor(fullPath), pinned.includes(normalizeKey(fullPath)))
-          )
-        }
-      }
-    }
+    visit(fullPath, name, 0, undefined)
   }
 
   // Sort: pinned first, then active, then by name

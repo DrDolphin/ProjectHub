@@ -5,7 +5,14 @@ import { renameSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { existsSync, mkdirSync } from 'node:fs'
 import { IPC, type CreateProjectRequest } from '@shared/types'
-import { scanProjects, guessDevPorts, scaffoldTemplate, resolveDevCommand } from './scan'
+import {
+  scanProjects,
+  guessDevPorts,
+  scaffoldTemplate,
+  resolveDevCommand,
+  readManifestMeta,
+  mergeMeta
+} from './scan'
 import {
   getMetadata,
   saveMetadata,
@@ -150,7 +157,7 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.START, async (e, path: string) => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    const meta = getMetadata()[normalizeKey(path)] || {}
+    const meta = mergeMeta(getMetadata()[normalizeKey(path)] || {}, readManifestMeta(path))
     const command = resolveDevCommand(path, meta)
     if (!command) {
       toast(

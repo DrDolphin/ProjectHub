@@ -81,6 +81,15 @@ export function getManifestPath(): string {
   return join(getHubDir(), 'manifest.json')
 }
 
+/**
+ * JSON Schema describing a per-project `manifest.json`. Lives in the hub dir so
+ * the `"$schema": "../.projecthub/manifest.schema.json"` reference that
+ * project manifests carry resolves for editor validation.
+ */
+export function getManifestSchemaPath(): string {
+  return join(getHubDir(), 'manifest.schema.json')
+}
+
 /** Resolve a bundled seed file from the app source/resources. */
 export function getSeedMetadataPath(): string {
   // In dev: <app>/resources/metadata.seed.json
