@@ -2,23 +2,22 @@
   <title>ProjectHub</title>
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#7e9bff"/>
-      <stop offset="1" stop-color="#4760d6"/>
+      <stop offset="0" stop-color="#7d97ff"/>
+      <stop offset="1" stop-color="#475ed4"/>
     </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+    <radialGradient id="sheen" cx="0.32" cy="0.22" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
       <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
+    </radialGradient>
   </defs>
   <rect x="20" y="20" width="472" height="472" rx="116" fill="url(#tile)"/>
   <rect x="20" y="20" width="472" height="472" rx="116" fill="url(#sheen)"/>
-  <g stroke="#ffffff" stroke-opacity="0.82" stroke-width="29" stroke-linecap="round">
-    <line x1="256" y1="256" x2="256" y2="102"/>
-    <line x1="256" y1="256" x2="122" y2="333"/>
-    <line x1="256" y1="256" x2="390" y2="333"/>
-  </g>
-  <rect x="211" y="57" width="90" height="90" rx="26" fill="#ffffff"/>
-  <rect x="77" y="288" width="90" height="90" rx="26" fill="#ffffff"/>
-  <rect x="345" y="288" width="90" height="90" rx="26" fill="#ffffff"/>
-  <circle cx="256" cy="256" r="66" fill="#ffffff"/>
+  <rect x="232" y="120" width="180" height="150" rx="30" fill="#ffffff" fill-opacity="0.42"/>
+  <rect x="96" y="212" width="280" height="180" rx="34" fill="#14215a" fill-opacity="0.20"/>
+  <rect x="96" y="204" width="280" height="180" rx="34" fill="#ffffff"/>
+  <circle cx="132" cy="236" r="11" fill="url(#tile)"/>
+  <circle cx="166" cy="236" r="11" fill="url(#tile)"/>
+  <circle cx="200" cy="236" r="11" fill="url(#tile)"/>
+  <rect x="132" y="284" width="190" height="22" rx="11" fill="url(#tile)" fill-opacity="0.30"/>
+  <rect x="132" y="324" width="132" height="22" rx="11" fill="url(#tile)" fill-opacity="0.30"/>
 </svg>
