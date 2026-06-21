@@ -1,0 +1,13 @@
+node_modules/
+out/
+dist/
+.trash/
+*.log
+.DS_Store
+
+# Pi agent state (session/loop data)
+.pi/
+
+# Personal project catalog — first-run seed with absolute local paths & private project info.
+# The app reads this on first launch; keep your local copy but don't commit it.
+resources/metadata.seed.json
