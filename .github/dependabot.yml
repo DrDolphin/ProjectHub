@@ -1,50 +1,35 @@
-# Keep dependencies (and CI actions) current. Electron ships a Chromium/
-# Node runtime with regular CVEs, so updates are grouped to land as
-# reviewable batches rather than a flood of individual PRs.
+# Keep dependencies and CI actions current. Backwards-compatible updates
+# (minor + patch) are grouped into a single weekly PR to keep noise low,
+# while major-version bumps arrive as individual PRs so each breaking
+# upgrade gets deliberate, isolated review. Electron ships a Chromium/Node
+# runtime with regular CVEs, so its security patches surface promptly here.
 version: 2
 
 updates:
   # npm (pnpm) dependencies
   - package-ecosystem: npm
-    directory: /
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
-      # Electron + its updater are security-critical; review as one unit.
-      electron:
-        patterns:
-          - electron
-          - electron-builder
-          - electron-vite
-          - electron-updater
-      # React renderer stack
-      react:
-        patterns:
-          - react
-          - react-dom
-          - '@types/react'
-          - '@types/react-dom'
-      # Everything else (lint, build tooling, types)
-      tooling:
-        dependency-type: development
-        exclude-patterns:
-          - electron
-          - electron-builder
-          - electron-vite
-          - electron-updater
-          - react
-          - react-dom
+      # All non-breaking updates land together in one reviewable PR.
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+    # Major versions are intentionally left out of the group so each
+    # arrives as its own PR for deliberate, isolated review.
 
-  # Keep GitHub Actions on current, non-deprecated runtimes
+  # GitHub Actions used in the CI and release workflows
   - package-ecosystem: github-actions
-    directory: /
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
     groups:
-      actions:
+      github-actions:
         patterns:
-          - '*'
+          - "*"
