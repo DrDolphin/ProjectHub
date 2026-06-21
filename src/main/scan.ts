@@ -137,13 +137,18 @@ export function mergeMeta(base: ProjectMeta, override: ProjectMeta | null): Proj
   return merged
 }
 
+/** The exact `type` sentinel that marks a folder as a sub-project container. */
+const GROUPING_TYPE = 'grouping folder'
+
 /**
- * True when a manifest marks its folder as a container for sub-projects
- * (e.g. `"type": "Grouping folder"`). Such folders are descended into rather
- * than shown as a launchable project of their own.
+ * True when a manifest marks its folder as a container for sub-projects via
+ * the exact `"type": "Grouping folder"` sentinel. Such folders are descended
+ * into rather than shown as a launchable project of their own. An exact match
+ * (not a substring) avoids misclassifying real project kinds that merely
+ * contain the word "group" (e.g. "Group chat app").
  */
 export function isGroupingManifest(meta: ProjectMeta | null): boolean {
-  return Boolean(meta?.type && /group/i.test(meta.type))
+  return meta?.type?.trim().toLowerCase() === GROUPING_TYPE
 }
 
 /** Detect the dev server port from a project's config, if possible. */
@@ -430,7 +435,10 @@ export function scanProjects(opts: ScanOptions): Project[] {
 
   /**
    * Surface the projects reachable from `dir`. Returns true if it (or anything
-   * beneath it) produced a card. `parent` is the nearest grouping folder name.
+   * beneath it) produced a card. `parent` is the root-relative path of the
+   * containing folder (undefined at the top level), so it round-trips through
+   * IPC.CREATE's `join(root, parent)` even when groups are nested or share a
+   * name (e.g. `---/Story Generators`).
    */
   const visit = (dir: string, name: string, depth: number, parent: string | undefined): boolean => {
     const manifest = readManifestMeta(dir)
@@ -446,17 +454,16 @@ export function scanProjects(opts: ScanOptions): Project[] {
 
     // Otherwise it's a container: a declared grouping folder, or a plain
     // organizational folder that may hold projects. Descend one level (deeper
-    // for declared groups) and let children surface themselves.
+    // for declared groups) and let children surface themselves. Children carry
+    // this folder's root-relative path as their parent.
+    const dirRel = parent ? join(parent, name) : name
     let added = false
     if (depth < MAX_SCAN_DEPTH) {
       for (const child of listDir(dir).names) {
         if (IGNORED_DIRS.has(child) || child.startsWith('.')) continue
         const childPath = join(dir, child)
         if (!isDir(childPath)) continue
-        // The child's grouping folder, for labeling, is this folder if it's a
-        // declared group; otherwise keep the inherited parent (top-level name).
-        const childParent = grouping ? name : depth === 0 ? name : parent
-        if (visit(childPath, child, depth + 1, childParent)) added = true
+        if (visit(childPath, child, depth + 1, dirRel)) added = true
       }
     }
 

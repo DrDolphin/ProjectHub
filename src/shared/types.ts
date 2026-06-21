@@ -61,7 +61,7 @@ export interface Project {
   folder: string
   /** Display name (metadata override or folder name). */
   name: string
-  /** Parent folder name, if nested inside a grouping folder. */
+  /** Root-relative path of the containing (grouping) folder, if nested. */
   parent?: string
   /** Depth from the projects root (0 = top-level). */
   depth: number
