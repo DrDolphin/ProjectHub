@@ -63,7 +63,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build installer
-        run: pnpm build:win
+        # --publish never: electron-builder auto-publishes to a GitHub release when it
+        # detects CI. We upload the installer as a workflow artifact instead.
+        run: pnpm exec electron-vite build && pnpm exec electron-builder --win --publish never
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
