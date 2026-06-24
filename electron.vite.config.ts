@@ -10,6 +10,12 @@ export default defineConfig({
     resolve: { alias: sharedAlias },
     build: {
       rollupOptions: {
+        // `electron` is provided by the runtime — it must never be bundled.
+        // Otherwise a transitive `require('electron')` (e.g. from
+        // electron-updater) pulls in node_modules/electron's install shim,
+        // whose `module.exports = getElectronPath()` throws at startup in the
+        // packaged app ("Electron failed to install correctly").
+        external: ['electron'],
         input: { index: resolve(__dirname, 'src/main/index.ts') }
       }
     }
@@ -19,6 +25,7 @@ export default defineConfig({
     resolve: { alias: sharedAlias },
     build: {
       rollupOptions: {
+        external: ['electron'],
         input: { index: resolve(__dirname, 'src/preload/index.ts') }
       }
     }
