@@ -393,27 +393,6 @@ function buildProject(
   }
 }
 
-/** Does a directory look like a project? */
-function isProjectDir(dir: string): boolean {
-  const markers = [
-    MANIFEST_FILE, // an explicit ProjectHub manifest always marks a project
-    'package.json',
-    'pyproject.toml',
-    'requirements.txt',
-    'Cargo.toml',
-    'go.mod',
-    '.git',
-    'composer.json',
-    'Gemfile',
-    'pom.xml'
-  ]
-  if (markers.some((m) => hasFile(dir, m))) return true
-  const { names } = listDir(dir)
-  if (names.some((n) => n.endsWith('.csproj'))) return true
-  if (names.some((n) => n.endsWith('.html'))) return true // static html "project"
-  return false
-}
-
 export interface ScanOptions {
   metadata: Record<string, ProjectMeta>
   pinned: string[]
@@ -423,11 +402,14 @@ export interface ScanOptions {
 const MAX_SCAN_DEPTH = 6
 
 /**
- * Walk the projects root. A folder is surfaced as a project card when its
- * manifest (or, failing that, its on-disk markers) identifies it as one.
- * Folders whose manifest declares them a "Grouping folder" are never shown
- * themselves — they're descended into so their child projects appear instead,
- * to any depth (e.g. ---/Story Generators/AI CYOA).
+ * Walk the projects root. A folder is surfaced as a project card only when it
+ * carries its own ProjectHub `manifest.json` (the metadata file ProjectHub
+ * expects) and is not declared a grouping container. Folders whose manifest
+ * declares them a "Grouping folder" are never shown themselves — they're
+ * descended into so their child projects appear instead, to any depth (e.g.
+ * ---/Story Generators/AI CYOA). Folders without a manifest are likewise never
+ * shown; they're only traversed to find manifest-bearing projects nested under
+ * them.
  */
 export function scanProjects(opts: ScanOptions): Project[] {
   const root = getProjectsRoot()
@@ -452,9 +434,12 @@ export function scanProjects(opts: ScanOptions): Project[] {
     const meta = mergeMeta(centralizedFor(dir), manifest)
     const grouping = isGroupingManifest(manifest)
 
-    // A real project (declared and/or detected) that isn't a grouping container
-    // is a leaf — surface it and don't descend into its internals.
-    if (!grouping && isProjectDir(dir)) {
+    // The per-project manifest is the single gate for inclusion: a folder is
+    // surfaced as a project only when it carries its own ProjectHub
+    // `manifest.json` and isn't declared a grouping container. Folders without
+    // the manifest (loose code, docs, scratch dirs) are never shown as
+    // projects — they're only traversed to find ones that have it.
+    if (manifest && !grouping) {
       out.push(buildProject(dir, depth, parent, meta, isPinned(dir)))
       return true
     }
@@ -471,17 +456,6 @@ export function scanProjects(opts: ScanOptions): Project[] {
         const childPath = join(dir, child)
         if (!isDir(childPath)) continue
         if (visit(childPath, child, depth + 1, dirRel)) added = true
-      }
-    }
-
-    // Legacy fallback: a non-grouping top-level folder with no surfaced children
-    // but real contents still shows as a single depth-0 card (e.g. a loose docs
-    // or spec folder with no code markers).
-    if (!grouping && !added && depth === 0) {
-      const real = listDir(dir).names.filter((n) => !n.startsWith('.'))
-      if (real.length > 0) {
-        out.push(buildProject(dir, 0, undefined, meta, isPinned(dir)))
-        return true
       }
     }
 
