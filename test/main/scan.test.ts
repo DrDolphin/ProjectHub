@@ -1,5 +1,5 @@
-import { describe, test, expect } from 'vitest'
-import { writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { describe, test, expect, beforeAll, afterAll } from 'vitest'
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   readManifestMeta,
@@ -8,10 +8,18 @@ import {
   statusBucket,
   guessDevPorts,
   resolveDevCommand,
-  scaffoldTemplate
+  scaffoldTemplate,
+  scanProjects
 } from '../../src/main/scan'
 import type { DetectedInfo, ProjectMeta } from '@shared/types'
-import { makeTempProject, disposeTempProject } from '../helpers/fixture'
+import {
+  makeTempProject,
+  disposeTempProject,
+  makeFixture,
+  disposeFixture,
+  type Fixture
+} from '../helpers/fixture'
+import { setUserDataDir } from '../stubs/electron'
 
 // Minimal DetectedInfo (only `.kind` is read by statusBucket).
 function detected(kind: string): DetectedInfo {
@@ -332,6 +340,64 @@ describe('resolveDevCommand', () => {
     } finally {
       disposeTempProject(dir)
     }
+  })
+})
+
+// ---------------------------------------------------------------
+// Filesystem: scanProjects — manifest-gated inclusion
+// ---------------------------------------------------------------
+describe('scanProjects', () => {
+  let f: Fixture
+
+  beforeAll(() => {
+    f = makeFixture()
+    setUserDataDir(f.userDataDir)
+  })
+
+  afterAll(() => {
+    setUserDataDir(undefined)
+    disposeFixture(f)
+  })
+
+  const writeManifest = (dir: string, data: Record<string, unknown>): void => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(data))
+  }
+  const scan = (): string[] =>
+    scanProjects({ metadata: {}, pinned: [] }).map((p) => p.folder)
+
+  test('surfaces a folder that has the expected manifest.json', () => {
+    writeManifest(join(f.projectsRoot, 'with-manifest'), { name: 'With Manifest' })
+    expect(scan()).toContain('with-manifest')
+  })
+
+  test('excludes a real code project that has no manifest.json', () => {
+    const dir = join(f.projectsRoot, 'no-manifest')
+    mkdirSync(dir, { recursive: true })
+    // Code markers alone (package.json, .git, etc.) no longer qualify.
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { dev: 'vite' } }))
+    mkdirSync(join(dir, '.git'), { recursive: true })
+    expect(scan()).not.toContain('no-manifest')
+  })
+
+  test('descends into a grouping folder and surfaces its manifest-bearing child', () => {
+    const group = join(f.projectsRoot, 'group')
+    writeManifest(group, { type: 'Grouping folder' })
+    writeManifest(join(group, 'child'), { name: 'Child' })
+    const folders = scan()
+    // The grouping container itself is never shown…
+    expect(folders).not.toContain('group')
+    // …but a nested project that has its own manifest is.
+    expect(folders).toContain('child')
+  })
+
+  test('finds a manifest project nested under a plain (manifest-less) folder', () => {
+    const plain = join(f.projectsRoot, 'plain-folder')
+    mkdirSync(plain, { recursive: true })
+    writeManifest(join(plain, 'nested-proj'), { name: 'Nested' })
+    const folders = scan()
+    expect(folders).not.toContain('plain-folder')
+    expect(folders).toContain('nested-proj')
   })
 })
 
