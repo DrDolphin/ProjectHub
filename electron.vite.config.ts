@@ -26,7 +26,12 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: ['electron'],
-        input: { index: resolve(__dirname, 'src/preload/index.ts') }
+        input: { index: resolve(__dirname, 'src/preload/index.ts') },
+        // The main process loads the preload as `index.mjs`, and Electron
+        // requires ESM preload scripts to use the `.mjs` extension. Force it —
+        // rollup otherwise emits `.js` under this `"type": "module"` package,
+        // which fails to load and leaves `window.projectHub` undefined.
+        output: { format: 'es', entryFileNames: '[name].mjs' }
       }
     }
   },
